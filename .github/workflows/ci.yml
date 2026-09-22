@@ -5,15 +5,21 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: tracelens-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     strategy:
+      fail-fast: false
       matrix:
-        java: [ '17', '21' ]
+        java: [ '17', '21', '25' ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

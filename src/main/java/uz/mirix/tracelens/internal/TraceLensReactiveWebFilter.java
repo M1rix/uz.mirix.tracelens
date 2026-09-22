@@ -1,3 +1,82 @@
 package uz.mirix.tracelens.internal;
-import org.springframework.web.reactive.HandlerMapping;import org.springframework.web.server.*;import reactor.core.publisher.Mono;import uz.mirix.tracelens.*;import java.util.concurrent.atomic.*;
-public final class TraceLensReactiveWebFilter implements WebFilter {private final TraceLensProperties p;private final TraceLifecycle l;public TraceLensReactiveWebFilter(TraceLensProperties p,TraceLifecycle l){this.p=p;this.l=l;}public Mono<Void> filter(ServerWebExchange e,WebFilterChain chain){String path=e.getRequest().getPath().value();if(!l.shouldTrace()||excluded(path))return chain.filter(e);TraceContext c=l.start(e.getRequest().getMethod().name(),path);AtomicReference<Throwable> failure=new AtomicReference<>();AtomicBoolean published=new AtomicBoolean();if(p.getServerTiming().isEnabled())e.getResponse().beforeCommit(()->{TraceReport partial=c.finish(route(e),status(e),failure.get(),System.nanoTime());e.getResponse().getHeaders().set("Server-Timing",ServerTimingFormatter.format(partial,p));return Mono.empty();});return chain.filter(e).doOnError(failure::set).doFinally(signal->{if(!published.compareAndSet(false,true))return;l.publish(c.finish(route(e),status(e),failure.get(),System.nanoTime()));}).contextWrite(ctx->ctx.put(TraceContextHolder.REACTOR_KEY,c));}private boolean excluded(String path){org.springframework.util.AntPathMatcher m=new org.springframework.util.AntPathMatcher();return p.getWeb().getExclude().stream().anyMatch(x->m.match(x,path));}private static String route(ServerWebExchange e){Object pattern=e.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);return pattern==null?e.getRequest().getPath().value():pattern.toString();}private static int status(ServerWebExchange e){return e.getResponse().getStatusCode()==null?200:e.getResponse().getStatusCode().value();}}
+
+import org.springframework.web.reactive.HandlerMapping;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+import uz.mirix.tracelens.TraceLensProperties;
+import uz.mirix.tracelens.TraceReport;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+public final class TraceLensReactiveWebFilter implements WebFilter {
+
+    private final TraceLensProperties properties;
+    private final TraceLifecycle lifecycle;
+
+    public TraceLensReactiveWebFilter(TraceLensProperties properties, TraceLifecycle lifecycle) {
+        this.properties = properties;
+        this.lifecycle = lifecycle;
+    }
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String path = exchange.getRequest().getPath().value();
+        if (!lifecycle.shouldTrace() || excluded(path)) {
+            return chain.filter(exchange);
+        }
+
+        TraceContext context = lifecycle.start(exchange.getRequest().getMethod().name(), path);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean published = new AtomicBoolean();
+
+        if (properties.getServerTiming().isEnabled()) {
+            exchange.getResponse().beforeCommit(() -> {
+                TraceReport partial = context.finish(
+                    route(exchange),
+                    status(exchange, failure.get()),
+                    failure.get(),
+                    System.nanoTime()
+                );
+                exchange.getResponse().getHeaders().set(
+                    "Server-Timing",
+                    ServerTimingFormatter.format(partial, properties)
+                );
+                return Mono.empty();
+            });
+        }
+
+        return chain.filter(exchange)
+            .doOnError(failure::set)
+            .doFinally(signal -> {
+                if (published.compareAndSet(false, true)) {
+                    lifecycle.publish(context.finish(
+                        route(exchange),
+                        status(exchange, failure.get()),
+                        failure.get(),
+                        System.nanoTime()
+                    ));
+                }
+            })
+            .contextWrite(contextView -> contextView.put(TraceContextHolder.REACTOR_KEY, context));
+    }
+
+    private boolean excluded(String path) {
+        org.springframework.util.AntPathMatcher matcher = new org.springframework.util.AntPathMatcher();
+        return properties.getWeb().getExclude().stream().anyMatch(pattern -> matcher.match(pattern, path));
+    }
+
+    private static String route(ServerWebExchange exchange) {
+        Object pattern = exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        return pattern == null ? exchange.getRequest().getPath().value() : pattern.toString();
+    }
+
+    private static int status(ServerWebExchange exchange, Throwable failure) {
+        int status = exchange.getResponse().getStatusCode() == null
+            ? 200
+            : exchange.getResponse().getStatusCode().value();
+        return failure != null && status < 400 ? 500 : status;
+    }
+}

@@ -2,7 +2,7 @@
 
 **Know why your Spring request is slow. One dependency. Zero infrastructure.**
 
-TraceLens is a lightweight request profiler for Spring Boot. It gives you an immediate per-request breakdown of time spent in application code, SQL/JPA, outbound HTTP, Redis and response serialization — without Grafana, Jaeger, Zipkin, an OpenTelemetry Collector, agents or a sidecar.
+TraceLens is a lightweight request profiler for Spring Boot. It gives you an immediate per-request breakdown of time spent in application code, SQL/JPA, outbound HTTP, Redis and response serialization/write time — without Grafana, Jaeger, Zipkin, an OpenTelemetry Collector, agents or a sidecar.
 
 ```text
 TraceLens GET /api/orders/{id}  200  684.12 ms  [trace=41e5bc4f28ce45d1]
@@ -46,24 +46,27 @@ For local development of the starter:
 mvn clean install
 ```
 
-Then add the dependency to a Spring Boot 3.5.x application.
+Then add the dependency to a Spring Boot 3.5.x application. The starter depends on `spring-web`, but **does not pull Spring MVC into a WebFlux application**.
 
 ## Zero-config integrations
 
 | Area | Supported | How |
 |---|---|---|
-| Spring MVC requests | ✅ | servlet filter |
+| Spring MVC / servlet requests | ✅ | servlet filter |
+| Servlet async request lifetime | ✅ | `AsyncListener` completion |
 | Spring WebFlux requests | ✅ | reactive web filter |
 | JDBC / Hibernate / Spring Data JPA | ✅ | `DataSource` connection/statement interception |
 | `RestTemplate` | ✅ | interceptor + bean post processor |
 | `RestClient` | ✅ | Boot `RestClientCustomizer` |
-| `WebClient` | ✅ | Boot `WebClientCustomizer`, Reactor context aware |
+| `WebClient` | ✅ | Boot `WebClientCustomizer`, Reactor-context aware |
 | Spring Data Redis (imperative) | ✅ | connection factory / command interception |
 | R2DBC | ❌ | planned; JDBC instrumentation does not see R2DBC |
 | Reactive Redis | ❌ | planned |
 | arbitrary raw Java `HttpClient` | ❌ | no global JVM agent is installed |
 
 The unsupported cases are intentional: TraceLens does not use bytecode instrumentation or a Java agent.
+
+> Servlet async request **duration** is tracked to completion. Work executed on arbitrary application-managed executors does not inherit the TraceLens `ThreadLocal` automatically; use a custom span around that boundary or a full distributed tracing solution.
 
 ## Configuration
 
@@ -147,9 +150,9 @@ This is defense in depth, not a guarantee that every database dialect or custom 
 
 ## `Server-Timing`
 
-For servlet applications TraceLens sets `Server-Timing` at request completion when the response is not already committed. Applications that explicitly flush/stream the response very early may not receive the header.
+HTTP headers must be known before the response commits, so `Server-Timing` is a **pre-commit view** of the trace. TraceLens injects it immediately before the first servlet body write or from WebFlux `beforeCommit`. The final log report is produced after request completion and therefore contains the complete request duration.
 
-For WebFlux, the header is generated in `beforeCommit`, so it represents the spans visible before the response commits. The final log report is generated after request termination.
+Responses with no body receive the header at normal filter completion when the response is still mutable.
 
 ## Extending TraceLens
 
@@ -186,7 +189,7 @@ If you need cross-service tracing and long-term retention, use OpenTelemetry/APM
 mvn -B -ntp verify
 ```
 
-CI runs on Java 17 and Java 21.
+CI verifies Java 17, 21 and 25.
 
 ## License
 
