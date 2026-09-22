@@ -23,7 +23,7 @@ public final class TraceLensReactiveWebFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String path = exchange.getRequest().getPath().value();
+        String path = exchange.getRequest().getPath().pathWithinApplication().value();
         if (!lifecycle.shouldTrace() || excluded(path)) {
             return chain.filter(exchange);
         }
@@ -40,7 +40,7 @@ public final class TraceLensReactiveWebFilter implements WebFilter {
                     failure.get(),
                     System.nanoTime()
                 );
-                exchange.getResponse().getHeaders().set(
+                exchange.getResponse().getHeaders().add(
                     "Server-Timing",
                     ServerTimingFormatter.format(partial, properties)
                 );
@@ -65,12 +65,15 @@ public final class TraceLensReactiveWebFilter implements WebFilter {
 
     private boolean excluded(String path) {
         org.springframework.util.AntPathMatcher matcher = new org.springframework.util.AntPathMatcher();
-        return properties.getWeb().getExclude().stream().anyMatch(pattern -> matcher.match(pattern, path));
+        return properties.getWeb().getExclude().stream()
+            .anyMatch(pattern -> matcher.match(pattern, path));
     }
 
     private static String route(ServerWebExchange exchange) {
         Object pattern = exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-        return pattern == null ? exchange.getRequest().getPath().value() : pattern.toString();
+        return pattern == null
+            ? exchange.getRequest().getPath().pathWithinApplication().value()
+            : pattern.toString();
     }
 
     private static int status(ServerWebExchange exchange, Throwable failure) {

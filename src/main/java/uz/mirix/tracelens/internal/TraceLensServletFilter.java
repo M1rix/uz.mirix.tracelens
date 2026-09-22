@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public final class TraceLensServletFilter extends OncePerRequestFilter {
 
-    // Avoid a hard spring-webmvc dependency. Spring MVC uses this documented request attribute.
     private static final String BEST_MATCHING_PATTERN_ATTRIBUTE =
         "org.springframework.web.servlet.HandlerMapping.bestMatchingPattern";
 
@@ -35,8 +34,9 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return properties.getWeb().getExclude().stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
+        String path = pathWithinApplication(request);
+        return properties.getWeb().getExclude().stream()
+            .anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
     @Override
@@ -50,9 +50,10 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
             return;
         }
 
-        TraceContext context = lifecycle.start(request.getMethod(), request.getRequestURI());
+        TraceContext context = lifecycle.start(request.getMethod(), pathWithinApplication(request));
         AtomicReference<Throwable> failure = new AtomicReference<>();
         AtomicBoolean completed = new AtomicBoolean();
+        AtomicBoolean serverTimingWritten = new AtomicBoolean();
         TraceLensHttpServletResponseWrapper wrapped = new TraceLensHttpServletResponseWrapper(response);
 
         wrapped.beforeFirstWrite(() -> addServerTimingIfPossible(
@@ -60,7 +61,8 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
             request,
             response,
             failure.get(),
-            System.nanoTime()
+            System.nanoTime(),
+            serverTimingWritten
         ));
 
         TraceContextHolder.bind(context);
@@ -73,9 +75,25 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
             TraceContextHolder.clear();
 
             if (request.isAsyncStarted()) {
-                registerAsyncCompletion(request, response, wrapped, context, failure, completed);
+                registerAsyncCompletion(
+                    request,
+                    response,
+                    wrapped,
+                    context,
+                    failure,
+                    completed,
+                    serverTimingWritten
+                );
             } else {
-                complete(request, response, wrapped, context, failure.get(), completed);
+                complete(
+                    request,
+                    response,
+                    wrapped,
+                    context,
+                    failure.get(),
+                    completed,
+                    serverTimingWritten
+                );
             }
         }
     }
@@ -86,12 +104,21 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
         TraceLensHttpServletResponseWrapper wrapped,
         TraceContext context,
         AtomicReference<Throwable> failure,
-        AtomicBoolean completed
+        AtomicBoolean completed,
+        AtomicBoolean serverTimingWritten
     ) {
         AsyncListener listener = new AsyncListener() {
             @Override
             public void onComplete(AsyncEvent event) {
-                complete(request, response, wrapped, context, failure.get(), completed);
+                complete(
+                    request,
+                    response,
+                    wrapped,
+                    context,
+                    failure.get(),
+                    completed,
+                    serverTimingWritten
+                );
             }
 
             @Override
@@ -113,7 +140,15 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
         try {
             request.getAsyncContext().addListener(listener);
         } catch (IllegalStateException alreadyCompleted) {
-            complete(request, response, wrapped, context, failure.get(), completed);
+            complete(
+                request,
+                response,
+                wrapped,
+                context,
+                failure.get(),
+                completed,
+                serverTimingWritten
+            );
         }
     }
 
@@ -123,7 +158,8 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
         TraceLensHttpServletResponseWrapper wrapped,
         TraceContext context,
         Throwable failure,
-        AtomicBoolean completed
+        AtomicBoolean completed,
+        AtomicBoolean serverTimingWritten
     ) {
         if (!completed.compareAndSet(false, true)) {
             return;
@@ -148,8 +184,15 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
             endedNanos
         );
 
-        if (properties.getServerTiming().isEnabled() && !response.isCommitted()) {
-            response.setHeader("Server-Timing", ServerTimingFormatter.format(report, properties));
+        if (!serverTimingWritten.get()) {
+            addServerTimingIfPossible(
+                context,
+                request,
+                response,
+                failure,
+                endedNanos,
+                serverTimingWritten
+            );
         }
         lifecycle.publish(report);
     }
@@ -159,18 +202,22 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
         HttpServletRequest request,
         HttpServletResponse response,
         Throwable failure,
-        long nowNanos
+        long nowNanos,
+        AtomicBoolean serverTimingWritten
     ) {
-        if (!properties.getServerTiming().isEnabled() || response.isCommitted()) {
+        if (!properties.getServerTiming().isEnabled()
+            || response.isCommitted()
+            || !serverTimingWritten.compareAndSet(false, true)) {
             return;
         }
+
         TraceReport partial = context.finish(
             route(request),
             effectiveStatus(response, failure),
             failure,
             nowNanos
         );
-        response.setHeader("Server-Timing", ServerTimingFormatter.format(partial, properties));
+        response.addHeader("Server-Timing", ServerTimingFormatter.format(partial, properties));
     }
 
     private static int effectiveStatus(HttpServletResponse response, Throwable failure) {
@@ -180,6 +227,19 @@ public final class TraceLensServletFilter extends OncePerRequestFilter {
 
     private static String route(HttpServletRequest request) {
         Object pattern = request.getAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE);
-        return pattern == null ? request.getRequestURI() : pattern.toString();
+        return pattern == null ? pathWithinApplication(request) : pattern.toString();
+    }
+
+    private static String pathWithinApplication(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (contextPath != null
+            && !contextPath.isEmpty()
+            && uri.startsWith(contextPath)
+            && uri.length() >= contextPath.length()) {
+            String path = uri.substring(contextPath.length());
+            return path.isEmpty() ? "/" : path;
+        }
+        return uri;
     }
 }
