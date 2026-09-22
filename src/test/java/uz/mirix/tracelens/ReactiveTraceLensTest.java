@@ -28,7 +28,7 @@ class ReactiveTraceLensTest {
             .singleElement()
             .satisfies(span -> {
                 assertThat(span.name()).isEqualTo("pricing-rules");
-                assertThat(span.attributes()).containsEntry("signal", "onComplete");
+                assertThat(span.attributes()).containsEntry("signal", "ON_COMPLETE");
             });
     }
 
