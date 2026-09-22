@@ -30,15 +30,45 @@ Its contract is simple:
 
 ## Install
 
-The project is currently at `0.1.0-SNAPSHOT`. Once published, usage is:
+TraceLens is distributed through **JitPack**.
+
+### Maven
+
+Add JitPack as a repository:
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+```
+
+Then add TraceLens:
 
 ```xml
 <dependency>
-    <groupId>uz.mirix.tracelens</groupId>
-    <artifactId>tracelens-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <groupId>com.github.M1rix</groupId>
+    <artifactId>uz.mirix.tracelens</artifactId>
+    <version>v0.1.0</version>
 </dependency>
 ```
+
+### Gradle
+
+```groovy
+repositories {
+    mavenCentral()
+    maven { url = uri("https://jitpack.io") }
+}
+
+dependencies {
+    implementation "com.github.M1rix:uz.mirix.tracelens:v0.1.0"
+}
+```
+
+JitPack versions are Git tags/releases. During development you can also depend on a commit hash or `master-SNAPSHOT`.
 
 For local development of the starter:
 
@@ -46,7 +76,9 @@ For local development of the starter:
 mvn clean install
 ```
 
-Then add the dependency to a Spring Boot 3.5.x application. The starter depends on `spring-web`, but **does not pull Spring MVC into a WebFlux application**.
+TraceLens targets Java 17+ and Spring Boot 3.5.x. The starter depends on `spring-web`, but **does not pull Spring MVC into a WebFlux application**.
+
+> If the GitHub repository remains private, consumers must authenticate to JitPack with a JitPack token. For a public OSS library, make the repository public before publishing the release.
 
 ## Zero-config integrations
 
