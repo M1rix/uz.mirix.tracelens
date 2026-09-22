@@ -228,6 +228,23 @@ TraceLens intentionally does **not**:
 
 If you need cross-service tracing and long-term retention, use OpenTelemetry/APM. TraceLens is for answering one local question quickly: **where did this request spend its time?**
 
+## Runnable example
+
+A real consumer application lives in `example/`. It starts Spring Boot with H2 + JdbcTemplate + RestClient and verifies that TraceLens captures both SQL and outbound HTTP work in a real request.
+
+```bash
+mvn -B -ntp install
+mvn -B -ntp -f example/pom.xml spring-boot:run
+```
+
+Then:
+
+```bash
+curl -i http://localhost:8080/demo/orders/42
+```
+
+The response contains a `Server-Timing` breakdown and the application log prints the completed TraceLens report. See `example/README.md` for details.
+
 ## Build
 
 ```bash

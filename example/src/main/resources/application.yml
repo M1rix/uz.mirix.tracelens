@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: tracelens-example
+  datasource:
+    url: jdbc:h2:mem:tracelens-demo;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+tracelens:
+  enabled: true
+  sample-rate: 1.0
+  logging:
+    enabled: true
+    mode: ALL
+  server-timing:
+    enabled: true
+    include-descriptions: true
