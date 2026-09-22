@@ -1,0 +1,3 @@
+package uz.mirix.tracelens.internal;
+import org.slf4j.Logger; import org.slf4j.LoggerFactory; import uz.mirix.tracelens.*;
+public final class LoggingTraceReporter implements TraceReporter { private static final Logger LOG=LoggerFactory.getLogger("TraceLens"); private final TraceLensProperties p; public LoggingTraceReporter(TraceLensProperties p){this.p=p;} public void report(TraceReport r){if(!p.getLogging().isEnabled())return; boolean slow=r.duration().compareTo(p.getSlowThreshold())>=0; if(p.getLogging().getMode()==TraceLensProperties.Logging.Mode.SLOW_ONLY&&!slow)return; String t=TraceReportFormatter.format(r,p); if(slow)LOG.warn(t);else LOG.info(t);}}

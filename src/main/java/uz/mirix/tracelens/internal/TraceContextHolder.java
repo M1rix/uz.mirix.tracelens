@@ -1,0 +1,2 @@
+package uz.mirix.tracelens.internal;
+public final class TraceContextHolder {public static final Class<TraceContext> REACTOR_KEY=TraceContext.class;private static final ThreadLocal<TraceContext>CURRENT=new ThreadLocal<>();private TraceContextHolder(){}public static TraceContext current(){return CURRENT.get();}public static void bind(TraceContext c){CURRENT.set(c);}public static void clear(){CURRENT.remove();}}

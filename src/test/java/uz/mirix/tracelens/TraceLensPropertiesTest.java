@@ -1,0 +1,1 @@
+package uz.mirix.tracelens;import org.junit.jupiter.api.Test;import static org.assertj.core.api.Assertions.assertThatThrownBy;class TraceLensPropertiesTest{@Test void rejectsInvalidSampleRate(){TraceLensProperties p=new TraceLensProperties();assertThatThrownBy(()->p.setSampleRate(1.01)).isInstanceOf(IllegalArgumentException.class);}}

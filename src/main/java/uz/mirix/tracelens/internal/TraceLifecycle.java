@@ -1,0 +1,3 @@
+package uz.mirix.tracelens.internal;
+import uz.mirix.tracelens.*;import java.util.List;import java.util.concurrent.ThreadLocalRandom;
+public final class TraceLifecycle {private final TraceLensProperties p;private final List<TraceReporter> reporters;public TraceLifecycle(TraceLensProperties p,List<TraceReporter> reporters){this.p=p;this.reporters=List.copyOf(reporters);}public boolean shouldTrace(){return p.isEnabled()&&(p.getSampleRate()>=1.0d||ThreadLocalRandom.current().nextDouble()<p.getSampleRate());}public TraceContext start(String method,String path){return new TraceContext(method,path,p.getMaxSpans());}public void publish(TraceReport report){for(TraceReporter r:reporters)try{r.report(report);}catch(RuntimeException ignored){}}}
