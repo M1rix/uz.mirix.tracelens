@@ -1,1 +1,28 @@
-{"groups":[{"name":"tracelens","type":"uz.mirix.tracelens.TraceLensProperties","description":"TraceLens lightweight request profiling."}],"properties":[{"name":"tracelens.enabled","type":"java.lang.Boolean","defaultValue":true},{"name":"tracelens.sample-rate","type":"java.lang.Double","defaultValue":1.0},{"name":"tracelens.max-spans","type":"java.lang.Integer","defaultValue":100},{"name":"tracelens.slow-threshold","type":"java.time.Duration","defaultValue":"250ms"},{"name":"tracelens.logging.enabled","type":"java.lang.Boolean","defaultValue":true},{"name":"tracelens.logging.mode","type":"uz.mirix.tracelens.TraceLensProperties$Logging$Mode","defaultValue":"ALL"},{"name":"tracelens.logging.include-trace-id","type":"java.lang.Boolean","defaultValue":true},{"name":"tracelens.server-timing.enabled","type":"java.lang.Boolean","defaultValue":true},{"name":"tracelens.server-timing.max-metrics","type":"java.lang.Integer","defaultValue":20},{"name":"tracelens.web.exclude","type":"java.util.List<java.lang.String>"},{"name":"tracelens.sql.enabled","type":"java.lang.Boolean","defaultValue":true},{"name":"tracelens.sql.max-length","type":"java.lang.Integer","defaultValue":180},{"name":"tracelens.http-client.enabled","type":"java.lang.Boolean","defaultValue":true},{"name":"tracelens.http-client.include-path","type":"java.lang.Boolean","defaultValue":false},{"name":"tracelens.redis.enabled","type":"java.lang.Boolean","defaultValue":true}]}
+{
+  "groups": [
+    {
+      "name": "tracelens",
+      "type": "uz.mirix.tracelens.TraceLensProperties",
+      "description": "TraceLens lightweight request profiling."
+    }
+  ],
+  "properties": [
+    {"name":"tracelens.enabled","type":"java.lang.Boolean","defaultValue":true},
+    {"name":"tracelens.sample-rate","type":"java.lang.Double","defaultValue":1.0},
+    {"name":"tracelens.max-spans","type":"java.lang.Integer","defaultValue":100},
+    {"name":"tracelens.slow-threshold","type":"java.time.Duration","defaultValue":"250ms"},
+    {"name":"tracelens.logging.enabled","type":"java.lang.Boolean","defaultValue":true},
+    {"name":"tracelens.logging.mode","type":"uz.mirix.tracelens.TraceLensProperties$Logging$Mode","defaultValue":"ALL"},
+    {"name":"tracelens.logging.include-trace-id","type":"java.lang.Boolean","defaultValue":true},
+    {"name":"tracelens.server-timing.enabled","type":"java.lang.Boolean","defaultValue":true},
+    {"name":"tracelens.server-timing.max-metrics","type":"java.lang.Integer","defaultValue":20},
+    {"name":"tracelens.server-timing.max-description-length","type":"java.lang.Integer","defaultValue":80},
+    {"name":"tracelens.server-timing.include-descriptions","type":"java.lang.Boolean","defaultValue":false},
+    {"name":"tracelens.web.exclude","type":"java.util.List<java.lang.String>"},
+    {"name":"tracelens.sql.enabled","type":"java.lang.Boolean","defaultValue":true},
+    {"name":"tracelens.sql.max-length","type":"java.lang.Integer","defaultValue":180},
+    {"name":"tracelens.http-client.enabled","type":"java.lang.Boolean","defaultValue":true},
+    {"name":"tracelens.http-client.include-path","type":"java.lang.Boolean","defaultValue":false},
+    {"name":"tracelens.redis.enabled","type":"java.lang.Boolean","defaultValue":true}
+  ]
+}

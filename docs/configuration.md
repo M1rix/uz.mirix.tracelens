@@ -4,7 +4,7 @@ All properties are under `tracelens`.
 
 | Property | Default | Meaning |
 |---|---:|---|
-| `enabled` | `true` | Master switch |
+| `enabled` | `true` | Master switch; disabled means instrumentation beans are not created |
 | `sample-rate` | `1.0` | Request sampling ratio (`0..1`) |
 | `max-spans` | `100` | Per-request span budget |
 | `slow-threshold` | `250ms` | WARN threshold |
@@ -13,7 +13,8 @@ All properties are under `tracelens`.
 | `logging.include-trace-id` | `true` | Include local trace id in logs |
 | `server-timing.enabled` | `true` | Add `Server-Timing` |
 | `server-timing.max-metrics` | `20` | Header metric budget |
-| `server-timing.max-description-length` | `80` | Max metric description length |
+| `server-timing.include-descriptions` | `false` | Expose span descriptions in browser header |
+| `server-timing.max-description-length` | `80` | Max description length when enabled |
 | `web.exclude` | actuator/favicon/error | Ant-style request exclusions |
 | `sql.enabled` | `true` | JDBC instrumentation |
 | `sql.max-length` | `180` | Max sanitized SQL label |
@@ -21,11 +22,19 @@ All properties are under `tracelens`.
 | `http-client.include-path` | `false` | Include sanitized path (never query string) |
 | `redis.enabled` | `true` | Imperative Spring Data Redis instrumentation |
 
+Detailed `Server-Timing` descriptions can contain database schema names, internal service hostnames or custom span names. They are therefore disabled by default. Enable them only where exposing that metadata to the HTTP client is acceptable:
+
+```yaml
+tracelens:
+  server-timing:
+    include-descriptions: true
+```
+
 ## Recommended profiles
 
 ### Local development
 
-Use defaults.
+Use defaults, optionally enabling `server-timing.include-descriptions` when detailed DevTools labels are useful.
 
 ### Shared test environment
 
