@@ -11,17 +11,25 @@ TraceLens has one job: produce a useful latency breakdown for one Spring HTTP re
 3. On request completion TraceLens computes **application self time** as total request duration minus the union of all captured span intervals.
 4. A `TraceReport` is published to all `TraceReporter` beans.
 5. The built-in reporter prints the tree-like breakdown.
-6. `Server-Timing` is emitted when the HTTP response lifecycle still allows it.
+6. `Server-Timing` is emitted before HTTP response commitment.
 
-The interval-union calculation matters because nested/overlapping spans must not be double-subtracted.
+The interval-union calculation matters because nested, parallel and overlapping spans must not be double-subtracted from application self time. Individual spans may overlap, so their displayed durations are not expected to sum arithmetically to the total request duration.
 
 ## Context propagation
 
-Servlet requests use a `ThreadLocal` because JDBC, `RestTemplate`, `RestClient` and imperative Redis execute on the request thread in the normal case.
+Servlet requests use a `ThreadLocal` because JDBC, `RestTemplate`, `RestClient` and imperative Redis normally execute on the request thread.
 
 WebFlux uses Reactor Context. `WebClient` reads the request `TraceContext` from Reactor Context and writes the completed outbound span directly to that captured context, so completion may happen on a different thread.
 
-TraceLens does not promise transparent context propagation through arbitrary user-created executors. Use a custom span around the async boundary or a full tracing system when that is required.
+Application-defined reactive spans use `ReactiveTraceLens.trace(...)`, which reads Reactor Context at subscription time. The imperative `TraceLens.span(...)` API intentionally does not pretend that a `ThreadLocal` can follow reactive thread switches.
+
+TraceLens does not promise transparent context propagation through arbitrary user-created executors. A full tracing system is the right tool when that is required.
+
+## Servlet async requests
+
+For servlet async processing, TraceLens registers an `AsyncListener` and keeps the request trace open until servlet completion. This makes the reported request lifetime correct even when the initial filter invocation returns early.
+
+Arbitrary work submitted by the application to its own executor does not automatically inherit the TraceLens `ThreadLocal`.
 
 ## JDBC
 
@@ -45,11 +53,15 @@ Imperative Spring Data Redis is instrumented at the `RedisConnectionFactory` bou
 
 Reactive Redis is not yet instrumented because timing a method that merely returns a `Publisher` would be incorrect; it requires subscription-aware instrumentation.
 
+## Dependency boundary
+
+The starter has a hard dependency on `spring-web`, but WebFlux and Redis are optional integrations. It does not pull `spring-webmvc` into a reactive application and therefore does not change Spring Boot's web application type merely by being installed.
+
 ## Safety and failure isolation
 
 TraceLens must never become an availability dependency:
 
-- integration code is no-op when no request is being traced;
+- integration code is a no-op when no request is being traced;
 - span count is bounded;
 - reporters are exception-isolated;
 - final/concrete infrastructure beans are left untouched when safe subclass proxying cannot preserve bean type;

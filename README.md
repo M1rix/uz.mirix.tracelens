@@ -66,7 +66,7 @@ Then add the dependency to a Spring Boot 3.5.x application. The starter depends 
 
 The unsupported cases are intentional: TraceLens does not use bytecode instrumentation or a Java agent.
 
-> Servlet async request **duration** is tracked to completion. Work executed on arbitrary application-managed executors does not inherit the TraceLens `ThreadLocal` automatically; use a custom span around that boundary or a full distributed tracing solution.
+> Servlet async request **duration** is tracked to completion. Work executed on arbitrary application-managed executors does not inherit the TraceLens `ThreadLocal` automatically.
 
 ## Configuration
 
@@ -118,7 +118,7 @@ tracelens:
 
 ## Custom spans
 
-Use the static API only when TraceLens cannot infer a useful boundary itself:
+For imperative MVC/service code:
 
 ```java
 try (var ignored = TraceLens.span("pricing-rules")) {
@@ -132,7 +132,16 @@ or:
 var result = TraceLens.trace("fraud-check", () -> fraudClient.check(order));
 ```
 
-When there is no active traced request these calls are no-ops.
+For WebFlux/reactive code, keep context propagation reactive:
+
+```java
+return ReactiveTraceLens.trace(
+    "pricing-rules",
+    pricingService.calculate(order)
+);
+```
+
+When there is no active traced request these APIs are no-ops.
 
 ## Security by default
 
@@ -147,6 +156,10 @@ TraceLens is designed for debugging without turning logs into a secret dump:
 - labels are single-line and bounded in length.
 
 This is defense in depth, not a guarantee that every database dialect or custom statement form can be perfectly anonymized. Treat profiling logs with the same access controls as application logs.
+
+## Timing semantics
+
+Captured spans can be nested or parallel. TraceLens therefore computes `application self time` by subtracting the **union** of captured span intervals from total request time. Individual span durations are independent measurements and do not have to sum to the total.
 
 ## `Server-Timing`
 
