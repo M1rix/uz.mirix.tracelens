@@ -68,8 +68,6 @@ dependencies {
 }
 ```
 
-JitPack versions are Git tags/releases. During development you can also depend on a commit hash or `master-SNAPSHOT`.
-
 For local development of the starter:
 
 ```bash
@@ -77,8 +75,6 @@ mvn clean install
 ```
 
 TraceLens targets Java 17+ and Spring Boot 3.5.x. The starter depends on `spring-web`, but **does not pull Spring MVC into a WebFlux application**.
-
-> If the GitHub repository remains private, consumers must authenticate to JitPack with a JitPack token. For a public OSS library, make the repository public before publishing the release.
 
 ## Zero-config integrations
 
